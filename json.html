@@ -205,9 +205,10 @@
       fetch(`https://api.themoviedb.org/3/movie/${movieID}?api_key=${apiKey}&language=es-MX`)
         .then(response => response.json())
         .then(movie => {
+        const fet = movie.release_date
           const jsonOutput = {
             "titulo": movie.title,
-            "año": movie.release_date,
+            "año": fet.split("-")[0],
             "enlace": finalURL
           };
           
@@ -287,4 +288,4 @@ function copyJsonToClipboard() {
     
   </script>
 </body>
-  </html>
+</html>
