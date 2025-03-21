@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlixStream</title>
+  <link rel="icon" href="https://i.postimg.cc/x85D2zcP/logo.png" type="image/png">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f4f1;
+      color: #1b4332;
+      padding: 20px;
+    }
+    h1 {
+      color: #2d6a4f;
+      text-align: center;
+    }
+    .container {
+      background-color: #95d5b2;
+      border: 2px solid #1b4332;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 500px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #1b4332;
+      border-radius: 5px;
+      box-sizing: border-box;
+      background-color: #b7e4c7;
+      color: #1b4332;
+    }
+    button {
+      background-color: #2d6a4f;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1b4332;
+    }
+    .output {
+      margin-top: 20px;
+      font-size: 14px;
+      background-color: #b7e4c7;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #1b4332;
+      color: #1b4332;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+    .copy-btn {
+      margin-top: 10px;
+      background-color: #2d6a4f;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .copy-btn:hover {
+      background-color: #1b4332;
+    }
+    .movie-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 10px;
+      background-color: #ffffff;
+      border: 1px solid #1b4332;
+      border-radius: 5px;
+      padding: 10px;
+    }
+    .movie-item {
+      padding: 10px;
+      border-bottom: 1px solid #1b4332;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+    }
+    .movie-item img {
+      width: 50px;
+      height: 75px;
+      margin-right: 10px;
+      border-radius: 5px;
+    }
+    .movie-item:hover {
+      background-color: #e9f7f1;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+  <h1>FlixStream</h1>
+  <div class="container">
+    <label for="urlInput">Ingresa una URL (m3u, mp4, avi):</label>
+    <input type="text" id="urlInput" placeholder="https://example.com/video.mp4">
+    
+    <label for="movieSearch">Buscar una película (ID):</label>
+    <input type="text" id="movieSearch" placeholder="Buscar película..." onkeyup="searchMovie()">
+    
+    <div id="movieResults" class="movie-list" style="display: none;"></div>
+    
+    <label for="movieID">O ingresa manualmente el ID de la película:</label>
+    <input type="text" id="movieID" placeholder="ID de la película (si no se encuentra)" oninput="clearMovieSearch()">
+    
+    <button onclick="generateEncodedURL()">Generar URL Codificada</button>
+    
+    <div id="output" class="output" style="display: none;">
+      <strong>URL Generada:</strong>
+      <p id="finalURL"></p>
+      <button class="copy-btn" onclick="copyURLToClipboard()">Copiar URL</button>
+    </div>
+
+    <div id="jsonOutputContainer" class="output" style="display: none;">
+      <strong>JSON Generado:</strong>
+      <pre id="jsonOutput" style="word-wrap: break-word; white-space: normal;"></pre>
+      <button class="copy-btn" onclick="copyJsonToClipboard()">Copiar JSON</button>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.js"></script>
+  <script>
+    const apiKey = "1f098c7d68777348425d008055475b88";
+    let selectedMovieId = null;
+
+    function searchMovie() {
+      const searchQuery = document.getElementById("movieSearch").value;
+
+      if (searchQuery.length < 3) {
+        document.getElementById("movieResults").style.display = 'none';
+        return;
+      }
+
+      fetch(`https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${searchQuery}&language=es-MX`)
+        .then(response => response.json())
+        .then(data => {
+          const movieResults = document.getElementById("movieResults");
+          movieResults.innerHTML = '';
+          
+          if (data.results.length === 0) {
+            movieResults.innerHTML = 'No se encontraron resultados.';
+          } else {
+            data.results.forEach(movie => {
+              const movieItem = document.createElement('div');
+              movieItem.classList.add('movie-item');
+              movieItem.innerHTML = `
+                <img src="https://image.tmdb.org/t/p/w92${movie.poster_path}" alt="${movie.title}">
+                <span>${movie.title}</span>
+              `;
+              movieItem.onclick = () => selectMovie(movie.id, movie.title);
+              movieResults.appendChild(movieItem);
+            });
+          }
+
+          movieResults.style.display = 'block';
+        })
+        .catch(error => {
+          console.error('Error al buscar película:', error);
+          document.getElementById("movieResults").style.display = 'none';
+        });
+    }
+
+    function selectMovie(movieId, movieTitle) {
+      document.getElementById("movieSearch").value = movieTitle;
+      document.getElementById("movieResults").style.display = 'none';
+      document.getElementById("movieID").value = movieId;
+      selectedMovieId = movieId;
+    }
+
+    function clearMovieSearch() {
+      document.getElementById("movieResults").style.display = 'none';
+      selectedMovieId = null;
+    }
+
+    function generateEncodedURL() {
+      const urlInput = document.getElementById("urlInput").value;
+      const movieID = document.getElementById("movieID").value;
+
+      if (!urlInput || !movieID) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Por favor, ingresa una URL válida y selecciona o ingresa el ID de una película.'
+        });
+        return;
+      }
+
+      const movieUrl = `${movieID}: "${urlInput}"`;
+      const finalURL = `https://flixstream.pro/e/${movieID}`;
+
+      document.getElementById("finalURL").innerText = movieUrl;
+      document.getElementById("output").style.display = 'block';
+
+      // Get movie details from API to generate the JSON
+      fetch(`https://api.themoviedb.org/3/movie/${movieID}?api_key=${apiKey}&language=es-MX`)
+        .then(response => response.json())
+        .then(movie => {
+          const jsonOutput = {
+            "titulo": movie.title,
+            "año": movie.release_date,
+            "enlace": finalURL
+          };
+          
+          const jsonOutputString = JSON.stringify(jsonOutput, null, 2);
+          document.getElementById("jsonOutput").innerText = jsonOutputString;
+          document.getElementById("jsonOutputContainer").style.display = 'block';
+        })
+        .catch(error => {
+          console.error('Error al obtener detalles de la película:', error);
+        });
+    }
+
+function copyToClipboard(elementId, successMessage, errorMessage) {
+  const element = document.getElementById(elementId);
+  
+  // Verifica si el elemento existe
+  if (!element) {
+    Swal.fire({
+      icon: 'error',
+      title: `Elemento con ID '${elementId}' no encontrado.`
+    });
+    return;
+  }
+
+  let textToCopy = element.textContent || element.innerText; // Usa textContent para mayor consistencia
+
+  // Si es JSON, formateamos el texto para que tenga saltos de línea y sangrías
+  try {
+    const parsedJson = JSON.parse(textToCopy);  // Intenta analizar el texto como JSON
+    textToCopy = JSON.stringify(parsedJson, null, 2);  // Si es JSON, lo formatea con sangrías
+  } catch (error) {
+    // Si no es JSON válido, dejamos el texto tal cual está
+  }
+
+  // Crea un campo de texto temporal
+  const tempTextArea = document.createElement("textarea");
+  tempTextArea.value = textToCopy;
+
+  // Añade el campo de texto al DOM
+  document.body.appendChild(tempTextArea);
+
+  // Selecciona el contenido del campo de texto
+  tempTextArea.select();
+  tempTextArea.setSelectionRange(0, 99999); // Para dispositivos móviles
+
+  try {
+    // Intenta copiar el contenido al portapapeles
+    const successful = document.execCommand('copy');
+    if (successful) {
+      Swal.fire({
+        icon: 'success',
+        title: successMessage
+      });
+    } else {
+      throw new Error("No se pudo copiar.");
+    }
+  } catch (error) {
+    Swal.fire({
+      icon: 'error',
+      title: `${errorMessage}: ${error.message}`
+    });
+  }
+
+  // Elimina el campo de texto temporal
+  document.body.removeChild(tempTextArea);
+}
+
+// Función para copiar la URL
+function copyURLToClipboard() {
+  copyToClipboard("finalURL", "¡URL copiada al portapapeles!", "Error al copiar la URL");
+}
+
+// Función para copiar el JSON
+function copyJsonToClipboard() {
+  copyToClipboard("jsonOutput", "¡JSON copiado al portapapeles!", "Error al copiar el JSON");
+}
+    
+  </script>
+</body>
+  </html>
